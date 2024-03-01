@@ -167,5 +167,3 @@ summary_table['远志:石菖蒲 频率(%)'] = (summary_table['远志:石菖蒲 �
 # # 添加远志与川芎的用量比例信息
 # summary_table['远志:川芎 频次'] = pd.cut(yunzhi_chuanxiong_ratio, bins=[0, 0.1, 0.2, 1], labels=['<1', '=1', '>1']).value_counts().sort_index()
 # summary_table['远志:川芎 频率(%)'] = (summary_table['远志:川芎 频次'] / summary_table['远志:川芎 频次'].sum() * 100).round(2)
-
-# print(summary_table)
