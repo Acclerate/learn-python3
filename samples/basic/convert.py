@@ -18,31 +18,30 @@ class fn_conv_medpooltype(object):
         else:
             return "11"
 
-
 # 医疗类别转码
 @annotate('*->string')
 class fn_conv_med_type(object):
-    def evaluate(self, med_type, med_pool_type):
+    def evaluate(self, med_type,med_pool_type):
         # 6 普通门诊
         if med_pool_type == "6":
             med_type_mapping = {
-                "19": "990103",
-                "61": "1403",  # 居民两病 转为 门诊慢特病
-                "1107": "11",  # 居民普通门诊慢性病 转为 门诊慢特病
-                "18": "11",  # 居民普通门诊慢性病 转为 门诊慢特病
-                "78": "910302",  # 住院谈判药
-                "66": "1103",  # 早诊早治，癌症筛查
+                "18": "11",    # 居民普通门诊慢性病 转为 门诊慢特病
+                "19": "990103", #新冠病毒核酸检测
+                "41": "41",     # 定点药店购药
+                "61": "1403",  # 两病门诊
+                "62": "990101", # 门诊单病种
+                "63": "9940",   # 意外伤害，意外伤害住院
+                "64": "910202", # 门诊谈判药，国家谈判药门诊"64": "910202", # 门诊谈判药，国家谈判药门诊
+                "66": "1103",   # 早诊早治，癌症筛查
                 "67": "99331",  # 血液透析
                 "68": "99332",  # 腹膜透析
-                "69": "1103",  # 多肿瘤标志物门诊, 癌症筛查
-                "70": "110215",  # 抗排异门诊单病种，器官移植抗排斥治疗
-                "71": "910202",  # 门诊谈判药，国家谈判药门诊
-                "41": "41",  # 定点药店购药
-                "62": "990101",  # 门诊单病种
-                "63": "9940",  # 意外伤害，意外伤害住院
-                "64": "910202",  # 门诊谈判药，国家谈判药门诊
-                "72": "510103",  # 居民生育门诊，居民产前检查
-                "77": "9943",  # 卫健免费用药
+                "69": "1103",   # 多肿瘤标志物门诊, 癌症筛查
+                "70": "110215", # 抗排异门诊单病种，器官移植抗排斥治疗
+                "71": "910202", # 门诊谈判药，国家谈判药门诊
+                "72": "510103", # 居民生育门诊，居民产前检查
+                "77": "9943",   # 卫健免费用药
+                "78": "910302", # 住院谈判药
+                "1107": "11",  # 转为 普通门诊
             }
             med_type = med_type_mapping.get(med_type, med_type)  # 通过字典简化if-else结构
 
@@ -50,24 +49,86 @@ class fn_conv_med_type(object):
         elif med_pool_type == "4":
             med_type = "14"
         elif med_pool_type == "1":
-            if med_type == "73":  # 居民生育住院
-                med_type = "2106"  # 居民生育住院
+            if med_type == "73":    # 居民生育住院
+                med_type = "2106"   # 居民生育住院
             elif med_type == "74":  # 儿童三类疾病
-                med_type = "9940"  # 意外伤害住院
-            else:
+                # med_type = "9940"   # 意外伤害住院
                 med_type = "21"
+            else:
+                med_type = "21"  #普通住院
         elif med_pool_type == "5":
             med_type = "81"
         elif med_pool_type == "2":
             med_type_mapping_2 = {
+                "32": "9954",    # 机构护理，默认同"35"
                 "33": "990302",  # 医疗专护
                 "34": "990403",  # 机构护理
-                "35": "9954",  # 居家护理
-                "32": "9954",  # 机构护理，默认同"35"
+                "35": "9954",    # 居家护理
             }
             med_type = med_type_mapping_2.get(med_type, "71")
         elif med_pool_type == "3":
             med_type = "13"
+
+        return med_type
+
+
+
+
+# 医疗类别转码(异地)
+@annotate('*->string')
+class fn_conv_outmed_type(object):
+    def __init__(self):
+        self.med_type_mappings = {
+            '0': {
+                "21": "21",  # 普通住院
+            },
+            '6': {
+                "14": "14",  # 门诊慢特病
+                "18": "11",  # 居民普通门诊慢性病 转为 门诊慢特病
+                "19": "990103",  # 新冠病毒核酸检测
+                "41": "41",  # 定点药店购药
+                "61": "1403",  # 两病门诊
+                "62": "990101",  # 门诊单病种
+                "63": "9940",  # 意外伤害，意外伤害住院
+                "64": "910202",  # 门诊谈判药，国家谈判药门诊
+                "66": "1103",  # 早诊早治，癌症筛查
+                "67": "99331",  # 血液透析
+                "68": "99332",  # 腹膜透析
+                "69": "1103",  # 多肿瘤标志物门诊, 癌症筛查
+                "70": "110215",  # 抗排异门诊单病种，器官移植抗排斥治疗
+                "71": "910202",  # 门诊谈判药，国家谈判药门诊
+                "72": "510103",  # 居民生育门诊，居民产前检查
+                "77": "9943",  # 卫健免费用药
+                "78": "910302",  # 住院谈判药
+                "1107": "11",  # 转为 普通门诊
+            },
+            '4': "14",  # 其他状态
+            '1': {
+                "73": "2106",  # 居民生育住院
+                "74": "21",  # 儿童三类疾病
+            },
+            '5': "9940",  # 意外伤害住院
+            '2': {
+                "32": "9954",  # 机构护理
+                "33": "990302",  # 医疗专护
+                "34": "990403",  # 机构护理
+                "35": "9954",  # 居家护理
+            },
+            '3': "13",  # 特定情况，对应值
+        }
+
+    def evaluate(self, med_type, med_pool_type):
+        default_mapping = self.med_type_mappings.get(med_pool_type, {})
+
+        if med_pool_type == '6':
+            med_type = default_mapping.get(med_type, "11")
+
+        elif med_pool_type == '1':
+            med_type = default_mapping.get(med_type, "21")
+
+        else:
+            med_type = default_mapping if isinstance(default_mapping, str) else default_mapping.get(med_type,
+                                                                                                    "21" if med_pool_type != '2' else "71")
 
         return med_type
 
@@ -105,7 +166,7 @@ class fn_conv_med_type(object):
 #         for item in self.gb_optins_info:
 #             if item[1] == arg0:
 #                 return item[2]
-
+# 已替换为
 # CREATE SQL FUNCTION func_get_optins_sql(@a STRING)
 # AS
 #     case when  @a ='' OR @a is null then
@@ -340,62 +401,6 @@ class gjj_get_default_jbr(object):
 
 # 险种类型转码 人员类别
 @annotate('string->string')
-class fn_conv_psntype(object):
-    def evaluate(self, psn_type):
-        if psn_type is None:
-            return "99"
-        elif psn_type in ("11", "12", "13", "14", "16"):
-            return "11"  # 在职
-        elif psn_type == '15':
-            return '1104'  # 减员职工
-        elif psn_type in ("21", "22", "23", "24", "25", "26", "27"):
-            return "12"  # 退休人员
-        elif psn_type == "27":
-            return "1204"  # 退职职工
-        elif psn_type == "31":
-            return "13"  # 离休
-        elif psn_type == "33":
-            return "995310"  # 二乙残人员
-        elif psn_type in ("50", "504", "505"):
-            return "15"  # 居民（成年）
-        elif psn_type == "92":
-            return "146004"  # 15 低保人员
-        elif psn_type == "93":
-            return "146002"  # 15 残疾人员
-        elif psn_type == "41":
-            return "1402"  # 学龄前儿童
-        elif psn_type in ("414", "415"):
-            return "14"  # 14 - 居民（未成年）
-        elif psn_type in ("42", "424", "425"):
-            return "1403"  # 中小学生
-        elif psn_type in ("43", "434", "435"):
-            return "1404"  # 大学生
-        elif psn_type in ("44", "445"):
-            return "1401"  # 新生儿
-        elif psn_type == "16":
-            return "1105"  # 农民工
-        elif psn_type == "45":
-            return "1406"  # 低保学生儿童
-        elif psn_type == "92":
-            return "146004"  # 低保人员
-        elif psn_type == "93":
-            return "146002"  # 残疾人员
-        elif psn_type == "34":
-            return "50"  # 医疗照顾人员
-        elif psn_type == "35":  # 离休干部配偶或遗孀
-            return "5088"  # 离休配偶顾人员
-        elif psn_type == "36":  # 遗属
-            return "156031"  # 遗属60岁以上
-        elif psn_type == "60":
-            return "16"  # 居民（老年
-        elif psn_type == "37":
-            return "34"  # 建国前老工人
-        else:
-            return "99"
-
-
-#险种类型转码 人员类别
-@annotate('string->string')
 class fn_conv_psntype:
     def __init__(self):
         # 定义一个字典来映射输入值到输出值，特别注意处理了重复键的情况
@@ -403,8 +408,8 @@ class fn_conv_psntype:
             None: "99",
             "11": "11", "12": "11", "13": "11", "14": "11", "16": "11",  # 在职
             "15": "1104",  # 减员职工
-            "27": "1204",  # 退职职工 这里"27"被"12"覆盖，
             "21": "12", "22": "12", "23": "12", "24": "12", "25": "12", "26": "12", "27": "12",  # 退休人员
+            "27": "1204",  # 退职职工 这里"27"被"12"覆盖 退职,存在重复键 暂时不在统计
             "31": "13",  # 离休
             "33": "995310",  # 二乙残人员
             "50": "15", "504": "15", "505": "15",  # 居民（成年）
@@ -415,19 +420,24 @@ class fn_conv_psntype:
             "42": "1403", "424": "1403", "425": "1403",  # 中小学生
             "43": "1404", "434": "1404", "435": "1404",  # 大学生
             "44": "1401", "445": "1401",  # 新生儿
-            "16": "1105",  # 农民工
+            "16": "1105",  # 农民工 与在职重复了，但暂未使用该类型
             "45": "1406",  # 低保学生儿童
             "34": "50",  # 医疗照顾人员
             "35": "5088",  # 离休配偶顾人员
             "36": "156031",  # 遗属60岁以上
-            "60": "16", "605": "16", # 居民（老年
-            "37": "34" # 建国前老工人
+            "60": "16", "605": "16",  # 居民（老年
+            "37": "34"  # 建国前老工人
         }
+
     def evaluate(self, psn_type):
         return self.mapping.get(psn_type, "99")  # 如果psn_type不在字典中，则默认返回"99"
-#
-# @annotate('string->string')
-# class fn_test_fromtab(object):
-#     def evaluate(self, table_name):
 
-#             return table_name;
+
+# 类别
+@annotate('string->string')
+class fn_conv_list_type:
+    def evaluate(self, list_type):
+        type_mapping = {
+            "1": "101", "2": "201", "4": "301"
+        }
+        return type_mapping.get(list_type, list_type)

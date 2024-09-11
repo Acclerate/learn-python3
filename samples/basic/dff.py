@@ -26,11 +26,19 @@ with open("D:\\privategit\\learn-python3\\samples\\afile\\listB.txt", "r") as f:
         listB.append(line.strip())
 
 # 使用集合运算符（-）获取差集
-difference = set(listB) - set(listA)
+# difference = set(listB) - set(listA)
+difference = set(listA) - set(listB)
 
 # 将差集转换为列表
 差集列表 = list(difference)
 
 # 打印差集
-print(差集列表)
+# print(差集列表)
 
+# A=['1','2','3','4','5']
+# B=A+['2','3','4','5','6']
+# C=['2','3','4']
+# print(B)
+# print(type(B))
+# D=B-C
+# print(D)
