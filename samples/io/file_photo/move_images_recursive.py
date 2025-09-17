@@ -9,8 +9,12 @@ import datetime
 
 # source_dir = r'E:\neusoft\烟台\龙口定点医药机构门头照片'
 # target_dir = r'E:\neusoft\烟台\龙口定点医药机构照片待上传20250915'
-source_dir = r'E:\neusoft\烟台\机构图片上传\牟平区未上传成功照片20250915'
-target_dir = r'E:\neusoft\烟台\机构图片上传\牟平区未上传成功照片待上传20250915'
+# source_dir = r'E:\neusoft\烟台\机构图片上传\牟平区未上传成功照片20250915'
+# target_dir = r'E:\neusoft\烟台\机构图片上传\牟平区未上传成功照片待上传20250915'
+
+source_dir = r'E:\neusoft\烟台\机构图片上传\莱州市未上传成功照片重新上传20250917'
+target_dir = r'E:\neusoft\烟台\机构图片上传\莱州市未上传成功照片待重新上传20250917'
+
 
 # 定义日志文件路径
 log_file = r'd:\privategit\github\learn-python3\samples\io\file_photo\test_output\listD_recursive.txt'

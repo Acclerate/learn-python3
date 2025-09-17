@@ -20,7 +20,8 @@ DB_CONFIG = {
 
 # 图片文件夹路径
 
-IMAGE_FOLDER = r'E:\neusoft\烟台\机构图片上传\牟平区未上传成功照片待上传20250915'
+IMAGE_FOLDER = r'E:\neusoft\烟台\机构图片上传\莱州市未上传成功照片待重新上传20250917'
+# IMAGE_FOLDER = r'E:\neusoft\烟台\机构图片上传\牟平区未上传成功照片待上传20250915'
 # IMAGE_FOLDER = r'E:\neusoft\烟台\高新区医疗机构照片待上传'
 # IMAGE_FOLDER = r'E:\neusoft\烟台\龙口定点医药机构照片待上传20250915'
 # IMAGE_FOLDER = r'E:\neusoft\烟台\20250909芝罘区38家机构照片'
