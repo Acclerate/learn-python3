@@ -27,9 +27,9 @@ if not os.path.exists(log_dir):
 # 定义图片文件后缀
 image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.heic']
 
-# 定义正则表达式：H或P开头，后跟数字，可能有额外字符，然后是图片扩展名
+# 定义正则表达式：H或P开头(支持大小写)，后跟数字，可能有额外字符，然后是图片扩展名
 # 更新后的模式：匹配更多实际的文件名格式
-pattern = r'^[HP]\d+[\\-_]?\d*\.(jpg|jpeg|png|gif|bmp|tiff|webp|heic)(\\.jpg)?$'
+pattern = r'^[HPhp]\d+[\-_]?\d*\.(jpg|jpeg|png|gif|bmp|tiff|webp|heic)(\.jpg)?$'
 
 # 获取当前时间，用于日志
 current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
