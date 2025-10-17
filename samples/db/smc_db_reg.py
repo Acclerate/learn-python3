@@ -74,9 +74,19 @@ class MySQLTableExtractor:
         subquery_pattern = r'\(\s*select\b[\s\S]*?\bfrom\s+([^\s,\);\.]+(?:\.[^\s,\);]+)?)[\s\S]*?\)'  
         nested_tables = set(re.findall(subquery_pattern, sql, re.DOTALL | re.IGNORECASE))
         
-        # 改进的FROM子句匹配模式
-        from_pattern = r'\bfrom\s+(`?[^`\s,\);\.]+`?(?:\.`?[^`\s,\);\.]+`?)?)\s*(?:as\s+)?[^,\);]*'
-        main_tables = set(re.findall(from_pattern, sql, re.IGNORECASE))
+        # 改进的FROM子句匹配模式 - 支持逗号分隔的多个表
+        # 1. 先找到FROM关键字后面到WHERE/GROUP BY/ORDER BY等之前的所有内容
+        from_clause_pattern = r'\bfrom\b([\s\S]*?)(?:\bwhere\b|\bgroup\s+by\b|\border\s+by\b|\bhaving\b|\bunion\b|$)'
+        from_clauses = re.findall(from_clause_pattern, sql, re.IGNORECASE)
+        
+        main_tables = set()
+        # 2. 对每个FROM子句内容，提取用逗号分隔的所有表名
+        table_pattern = r'(`?[^`\s,\);\.]+`?(?:\.`?[^`\s,\);\.]+`?)?)\s*(?:as\s+[^,\);\s]+)?'
+        
+        for clause in from_clauses:
+            # 提取每个FROM子句中的所有表名
+            tables = re.findall(table_pattern, clause)
+            main_tables.update(filter(None, tables))
         
         # 改进的JOIN子句匹配模式
         join_pattern = r'\b(?:left|right|inner|outer|full|cross|natural)?\s*join\s+(`?[^`\s,\);\.]+`?(?:\.`?[^`\s,\);\.]+`?)?)\s*(?:as\s+)?[^,\);]*'
@@ -281,8 +291,8 @@ def main(param):
 query_ids = [86001755, 86001758, 86001759, 86001760, 86001761, 799, 86001962, 86001964, 86001969]
 
 # dashboard_id = '8600115'  ## 烟台市智慧医保风控管理中心
-dashboard_id = '8600122 '   ##  烟台市医保智能监控事前提醒分析
-dashboard_id = '8600134 '   ##  医保大数据反欺诈模型
+# dashboard_id = '8600122 '   ##  烟台市医保智能监控事前提醒分析
+# dashboard_id = '8600134 '   ##  医保大数据反欺诈模型
 dashboard_id = '8600125 '   ##  烟台市医保智能监控事中审核分析
 if __name__ == "__main__":
     main(dashboard_id)
