@@ -39,7 +39,7 @@ BATCH_SIZE = 10
 MERGE_CHUNK_SIZE = 60
 
 # 6. 切图微调 (向四周外扩像素)
-PADDING_PIXELS = 3
+PADDING_PIXELS = 1
 
 # ===========================================
 
