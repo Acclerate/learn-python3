@@ -56,9 +56,11 @@ MANIFEST
 *.csv
 .idea
 
-ai/files
+ai.files
 
-samples/convert_scanned_pdfs_to_md/files
+ai.files2
+
+samples.convert_scanned_pdfs_to_md.files
 
 
 *.py[cod]
@@ -122,3 +124,5 @@ MANIFEST
 *.pdf
 *.obsidian
 *.json
+*.jpg
+*.png
