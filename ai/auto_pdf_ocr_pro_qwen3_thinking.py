@@ -314,7 +314,7 @@ def main():
                     f.write("\n\n---\n\n")
         
         print(f"💾 已存档: {part_filename}")
-        # 批次间稍微休息，防止并发太猛
+        # 批次间稍微休息，防止并发太猛D:\privategit\github\learn-python3\ai\files\2)Zhang_Yu's_Basic_30_LecturesPart2.pdf
         time.sleep(2)
 
     doc.close()
