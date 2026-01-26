@@ -126,3 +126,5 @@ MANIFEST
 *.json
 *.jpg
 *.png
+nul
+tmpclaude-*
