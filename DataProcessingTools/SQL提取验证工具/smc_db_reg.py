@@ -296,6 +296,7 @@ def main(param):
 # dashboard_id = '8600125 '   ##  烟台市医保智能监控事中审核分析
 # dashboard_id = '8600149 '   ##  烟台市医保大数据管理和应用体系
 # dashboard_id = '8600135 '   ##  医保大数据反欺诈模型
-dashboard_id = '8600150 '   
+# dashboard_id = '8600150 '   ##  烟台市医保智能监控事后审核分析
+dashboard_id = '8400322 '   
 if __name__ == "__main__":
     main(dashboard_id)
