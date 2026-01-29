@@ -1,22 +1,102 @@
 # -*- coding: utf-8 -*-
 """
 股票交易策略回测模块 V2
-增强版：添加趋势跟踪和移动止损机制
+增强版：添加趋势跟踪和移动止损机制 + 多数据源自动切换
 """
 
 import os
 import time
+import random
 import pandas as pd
 import numpy as np
 import akshare as ak
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 # 禁用代理
 os.environ['HTTP_PROXY'] = ''
 os.environ['HTTPS_PROXY'] = ''
 os.environ['http_proxy'] = ''
 os.environ['https_proxy'] = ''
+
+
+# ================= 多数据源获取器 =================
+class MultiSourceFetcher:
+    """轻量级多数据源获取器"""
+
+    def __init__(self):
+        self.sources = []
+        self.fail_counts = {}
+        self._init_sources()
+
+    def _init_sources(self):
+        """初始化数据源"""
+        try:
+            import akshare
+            self.sources.append({'name': 'AkShare', 'fetch': self._fetch_akshare})
+        except ImportError:
+            pass
+
+        try:
+            import baostock
+            self.sources.append({'name': 'baostock', 'fetch': self._fetch_baostock})
+        except ImportError:
+            pass
+
+        for source in self.sources:
+            self.fail_counts[source['name']] = 0
+
+    def fetch_data(self, symbol: str, period: str = "daily") -> Optional[pd.DataFrame]:
+        """获取数据 - 自动切换"""
+        time.sleep(random.uniform(0.5, 1.5))
+
+        for source in self.sources:
+            name = source['name']
+            if self.fail_counts.get(name, 0) >= 3:
+                continue
+
+            try:
+                df = source['fetch'](symbol, period)
+                if df is not None and not df.empty:
+                    self.fail_counts[name] = 0
+                    return df
+            except Exception as e:
+                if 'Connection' in str(e) or 'Remote' in str(e) or 'aborted' in str(e):
+                    self.fail_counts[name] = self.fail_counts.get(name, 0) + 1
+
+        return None
+
+    def _fetch_akshare(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+        """AkShare数据源"""
+        return ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="qfq")
+
+    def _fetch_baostock(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+        """baostock数据源"""
+        import baostock as bs
+        lg = bs.login()
+        if lg.error_code != '0':
+            raise Exception(f"登录失败: {lg.error_msg}")
+
+        bs_symbol = f"sh.{symbol}" if symbol.startswith('6') else f"sz.{symbol}"
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
+        rs = bs.query_history_k_data_plus(
+            bs_symbol, "date,code,open,high,low,close,volume,amount",
+            start_date='2020-01-01', end_date=end_date, frequency="d", adjustflag="3"
+        )
+
+        data_list = []
+        while (rs.error_code == '0') and rs.next():
+            data_list.append(rs.get_row_data())
+        bs.logout()
+
+        if data_list:
+            df = pd.DataFrame(data_list, columns=rs.fields)
+            df.columns = ['date', 'code', 'open', 'high', 'low', 'close', 'volume', 'amount']
+            for col in ['open', 'high', 'low', 'close', 'volume', 'amount']:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            return df
+        return None
 
 
 class BacktestEngineV2:
@@ -42,6 +122,7 @@ class BacktestEngineV2:
         self.highest_price = 0.0  # 持仓期间最高价
         self.trades = []
         self.daily_value = []
+        self.multi_fetcher = MultiSourceFetcher()  # 多数据源获取器
 
     def calculate_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """计算技术指标"""
@@ -105,30 +186,26 @@ class BacktestEngineV2:
         return df
 
     def get_historical_data(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
-        """获取历史数据"""
+        """获取历史数据 - 使用多数据源自动切换"""
         print(f"[*] Fetching historical data for {symbol} ({start_date} ~ {end_date})...")
 
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                df = ak.stock_zh_a_hist(
-                    symbol=symbol,
-                    period="daily",
-                    start_date=start_date,
-                    end_date=end_date,
-                    adjust="qfq"
-                )
-                if df is not None and not df.empty:
-                    print(f"    [OK] Got {len(df)} records")
-                    return df
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    print(f"    [Retry] {attempt + 1}/{max_retries}: {str(e)[:30]}...")
-                    time.sleep(2)
-                else:
-                    raise e
+        df = self.multi_fetcher.fetch_data(symbol, period="daily")
 
-        raise ValueError(f"Failed to fetch data for {symbol}")
+        if df is None or df.empty:
+            raise ValueError(f"Failed to fetch data for {symbol}")
+
+        # 列名标准化（baostock返回的是英文小写列名）
+        if 'date' in df.columns and '日期' not in df.columns:
+            df.rename(columns={'date': '日期', 'open': '开盘', 'high': '最高',
+                               'low': '最低', 'close': '收盘', 'volume': '成交量'}, inplace=True)
+
+        # 日期过滤
+        if '日期' in df.columns:
+            df['日期'] = pd.to_datetime(df['日期'])
+            df = df[(df['日期'] >= start_date) & (df['日期'] <= end_date)]
+
+        print(f"    [OK] Got {len(df)} records")
+        return df
 
     def generate_signals_v2(self, df: pd.DataFrame) -> pd.DataFrame:
         """

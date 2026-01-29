@@ -6,17 +6,121 @@
 
 import os
 import time
+import random
 import pandas as pd
 import numpy as np
 import akshare as ak
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 # 禁用代理
 os.environ['HTTP_PROXY'] = ''
 os.environ['HTTPS_PROXY'] = ''
 os.environ['http_proxy'] = ''
 os.environ['https_proxy'] = ''
+
+
+class MultiSourceFetcher:
+    """轻量级多数据源获取器"""
+
+    def __init__(self):
+        self.sources = []
+        self.fail_counts = {}
+        self.cooldown_until = {}
+
+        # 优先级顺序：AkShare > baostock
+        self.sources.append({'name': 'AkShare', 'priority': 1, 'fetch': self._fetch_akshare})
+        self.sources.append({'name': 'baostock', 'priority': 2, 'fetch': self._fetch_baostock})
+
+        for source in self.sources:
+            name = source['name']
+            self.fail_counts[name] = 0
+            self.cooldown_until[name] = 0
+
+    def _fetch_akshare(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+        """使用AkShare获取数据"""
+        try:
+            df = ak.stock_zh_a_hist(
+                symbol=symbol,
+                period="daily",
+                adjust="qfq"
+            )
+            if df is not None and not df.empty:
+                return df
+        except Exception as e:
+            print(f"    [AkShare Error] {str(e)[:50]}...")
+        return None
+
+    def _fetch_baostock(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+        """使用baostock获取数据"""
+        try:
+            import baostock as bs
+            lg = bs.login()
+
+            # 转换股票代码格式 (000001 -> sz.000001, 600000 -> sh.600000)
+            if symbol.startswith('6'):
+                bs_symbol = f"sh.{symbol}"
+            else:
+                bs_symbol = f"sz.{symbol}"
+
+            rs = bs.query_history_k_data_plus(
+                bs_symbol,
+                "date,open,high,low,close,volume,amount",
+                start_date='1990-01-01',
+                end_date=datetime.now().strftime('%Y-%m-%d'),
+                frequency="d",
+                adjustflag="2"
+            )
+
+            data_list = []
+            while (rs.error_code == '0') & rs.next():
+                data_list.append(rs.get_row_data())
+
+            bs.logout()
+
+            if data_list:
+                df = pd.DataFrame(data_list, columns=['date', 'open', 'high', 'low', 'close', 'volume', 'amount'])
+                df['date'] = pd.to_datetime(df['date'])
+                df['open'] = df['open'].astype(float)
+                df['high'] = df['high'].astype(float)
+                df['low'] = df['low'].astype(float)
+                df['close'] = df['close'].astype(float)
+                df['volume'] = df['volume'].astype(float)
+                return df
+        except Exception as e:
+            print(f"    [baostock Error] {str(e)[:50]}...")
+        return None
+
+    def fetch_data(self, symbol: str, period: str = "daily") -> Optional[pd.DataFrame]:
+        """自动切换数据源获取数据"""
+        now = time.time()
+
+        for source in sorted(self.sources, key=lambda x: x['priority']):
+            name = source['name']
+
+            if self.fail_counts.get(name, 0) >= 3 and now < self.cooldown_until.get(name, 0):
+                continue
+
+            print(f"    [Trying {name}] {symbol}...", end=' ')
+            time.sleep(random.uniform(0.5, 1.5))
+
+            df = source['fetch'](symbol, period)
+
+            if df is not None and not df.empty:
+                self.fail_counts[name] = 0
+                print(f"OK ({len(df)} records) [Source: {name}]")
+                return df
+            else:
+                self.fail_counts[name] = self.fail_counts.get(name, 0) + 1
+                print(f"Failed (fail_count={self.fail_counts[name]})")
+
+                if self.fail_counts[name] >= 3:
+                    cooldown = 300
+                    self.cooldown_until[name] = now + cooldown
+                    print(f"    [{name} 进入冷却 {cooldown}s]")
+
+        print("    [All sources failed]")
+        return None
 
 
 class BacktestEngineV3:
@@ -43,6 +147,7 @@ class BacktestEngineV3:
         self.trades = []
         self.daily_value = []
         self.fund_flow_data = None  # 资金流向数据
+        self.multi_fetcher = MultiSourceFetcher()  # 多数据源获取器
 
     def calculate_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """计算技术指标"""
@@ -134,30 +239,26 @@ class BacktestEngineV3:
             return None
 
     def get_historical_data(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
-        """获取历史数据"""
+        """获取历史数据 - 使用多数据源自动切换"""
         print(f"[*] Fetching historical data for {symbol} ({start_date} ~ {end_date})...")
 
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                df = ak.stock_zh_a_hist(
-                    symbol=symbol,
-                    period="daily",
-                    start_date=start_date,
-                    end_date=end_date,
-                    adjust="qfq"
-                )
-                if df is not None and not df.empty:
-                    print(f"    [OK] Got {len(df)} records")
-                    return df
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    print(f"    [Retry] {attempt + 1}/{max_retries}: {str(e)[:30]}...")
-                    time.sleep(2)
-                else:
-                    raise e
+        df = self.multi_fetcher.fetch_data(symbol, period="daily")
 
-        raise ValueError(f"Failed to fetch data for {symbol}")
+        if df is None or df.empty:
+            raise ValueError(f"Failed to fetch data for {symbol}")
+
+        # 列名标准化（baostock返回的是英文小写列名）
+        if 'date' in df.columns and '日期' not in df.columns:
+            df.rename(columns={'date': '日期', 'open': '开盘', 'high': '最高',
+                               'low': '最低', 'close': '收盘', 'volume': '成交量'}, inplace=True)
+
+        # 日期过滤
+        if '日期' in df.columns:
+            df['日期'] = pd.to_datetime(df['日期'])
+            df = df[(df['日期'] >= start_date) & (df['日期'] <= end_date)]
+
+        print(f"    [OK] Got {len(df)} records")
+        return df
 
     def merge_fund_flow_to_price(self, price_df: pd.DataFrame, fund_df: pd.DataFrame) -> pd.DataFrame:
         """
